@@ -20,4 +20,3 @@ nitro-cli build-enclave --docker-uri walletenclave:latest  --output-file wallete
 vsock-proxy 8000 kms.ap-southeast-1.amazonaws.com 443 &
 
 nitro-cli run-enclave --cpu-count 4 --memory 5240 --enclave-cid 16 --eif-path walletenclave.eif --debug-mode --attach-console
-# nitro-cli console --enclave-id $(nitro-cli describe-enclaves | jq -r ".[0].EnclaveID")
