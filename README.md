@@ -1,10 +1,6 @@
 # what's this repo for
 this repo contains AWS Nitro Enclave demo with golang and python code
 
-[nitro-python-example](!/nitro-python-example/)
-
-[nitro-golang-example](!/nitro-golang-example/)
-
 # workflow implemented in this repo
 
 this demo code implement two use case, generateWallet and signature
