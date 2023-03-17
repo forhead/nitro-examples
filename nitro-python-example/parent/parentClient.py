@@ -7,7 +7,7 @@ import hashlib
 
 """
 dynamodb design
-table name: walletTable
+table name: demoWalletTable
 
 colume:
 walletName: wallet name for this wallet
