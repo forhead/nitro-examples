@@ -13,7 +13,6 @@ fi
 docker rmi walletenclave:latest
 pkill vsock-proxy
 
-
 docker build -t walletenclave:latest .
 nitro-cli build-enclave --docker-uri walletenclave:latest  --output-file walletenclave.eif > EnclaveImage.log
 

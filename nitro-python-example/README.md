@@ -33,7 +33,6 @@ you need create a IAM Role which will be attached to EC2/EKS, it need have the a
             "Sid": "VisualEditor1",
             "Effect": "Allow",
             "Action": [
-                "kms:GenerateRandom",
                 "dynamodb:PutItem",
                 "dynamodb:GetItem"
             ],
