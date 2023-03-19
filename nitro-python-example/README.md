@@ -7,11 +7,12 @@ Table name
 - walletTable
 
 Colume
-- walletName: wallet name for this wallet
-- encryptedPrivateKey: encrypted wallet private key
-- publicKey: the public key of the wallet
-- encryptedDatakey: the data key used to encrypt the private key
 - keyId: kms alias id which used for encryption for the private key
+- name: account name for this account
+- encryptedPrivateKey: encrypted wallet private key
+- address: the address key of the wallet
+- encryptedDataKey: the data key used to encrypt the private key
+
 
 ## IAM Role
 you need create a IAM Role which will be attached to EC2/EKS, it need have the access for kms and dynamodb. you need update this policy after your enclave image created with condition check of PCR
