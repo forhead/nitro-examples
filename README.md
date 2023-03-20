@@ -3,17 +3,17 @@ this repo contains AWS Nitro Enclave demo with golang and python code
 
 # workflow implemented in this repo
 
-this demo code implement two use case, generateWallet and signature
+this demo code implement two use case, generateAccount and signature
 
-## generateWallet
-generateWallet API call will generate the wallet content in Nitro Enclave and will use KMS to encrypt it with envelope encryption.
+## generateAccount
+generateAccount API call will generate the account content in Nitro Enclave and will use KMS to encrypt it with envelope encryption.
 
 below is the process of the workflow
 
-![generateWallet process](/image/generateWallet.png)
+![generateAccount process](/image/generateAccount.png)
 
 ## sign
-signature API call will sign a message with the private key of the wallet
+signature API call will sign a message with the private key of the account
 
 below is the process of the signature
 
