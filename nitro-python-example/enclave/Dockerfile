@@ -1,4 +1,4 @@
-FROM amazonlinux
+FROM amazonlinux:2
 
 RUN yum install python3 gcc net-tools -y
 
