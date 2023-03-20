@@ -10,12 +10,12 @@ if [ -n "$RunningEnclave" ]; then
 fi
 
 #docker rmi -f $(docker images -a -q)
-docker rmi walletenclave:latest
+docker rmi enclaveserver:latest
 pkill vsock-proxy
 
-docker build -t walletenclave:latest .
-nitro-cli build-enclave --docker-uri walletenclave:latest  --output-file walletenclave.eif > EnclaveImage.log
+docker build -t enclaveserver:latest .
+nitro-cli build-enclave --docker-uri enclaveserver:latest  --output-file enclaveserver.eif > EnclaveImage.log
 
 vsock-proxy 8000 kms.ap-southeast-1.amazonaws.com 443 &
 
-nitro-cli run-enclave --cpu-count 4 --memory 5240 --enclave-cid 16 --eif-path walletenclave.eif --debug-mode --attach-console
+nitro-cli run-enclave --cpu-count 4 --memory 5240 --enclave-cid 16 --eif-path enclaveserver.eif --debug-mode --attach-console

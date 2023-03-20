@@ -10,7 +10,7 @@ class nitroKms:
         subprocess_args = [
             "/app/kmstool_enclave_cli",
             "genkey",
-            "--region", os.getenv("REGION", "us-east-1"),
+            "--region", os.getenv("REGION"),
             "--proxy-port", "8000",
             "--aws-access-key-id", aws_access_key_id,
             "--aws-secret-access-key", aws_secret_access_key,
@@ -42,7 +42,7 @@ class nitroKms:
         subprocess_args = [
             "/app/kmstool_enclave_cli",
             "decrypt",
-            "--region", os.getenv("REGION", "us-east-1"),
+            "--region", os.getenv("REGION"),
             "--proxy-port", "8000",
             "--aws-access-key-id", aws_access_key_id,
             "--aws-secret-access-key", aws_secret_access_key,

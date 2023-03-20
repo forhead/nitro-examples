@@ -113,8 +113,8 @@ def main():
     # Listen for connection from client
     s.listen()
 
-    # read region from environment variable, default to ap-southeast-1 if not set
-    region = os.getenv("REGION", "ap-southeast-1")
+    # read region from environment variable
+    region = os.getenv("REGION")
     # server client which call generateWallet or sign
     server = nitroServer(region)
 

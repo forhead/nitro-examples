@@ -17,6 +17,7 @@ address: the address of the Account
 encryptedDataKey: the data key used to encrypt the private key
 """
 
+
 class AccountClient:
 
     """
@@ -26,6 +27,7 @@ class AccountClient:
     cid: cid for vsock client to connect
     port: port for vsock client to connect
     """
+
     def __init__(self, region, ddbTableName, keyId, cid, port):
         self.__region = region
         self.__ddbTableName = ddbTableName
@@ -38,6 +40,7 @@ class AccountClient:
     server sends the encrypted private key back, then save to dynamodb
     name: name for the Account
     """
+
     def generateAccount(self, name):
         credential = self.__getIAMToken()
         # Create a vsock socket object
@@ -66,7 +69,7 @@ class AccountClient:
                 'name': name
             })
             if 'Item' not in response:
-                print( name + ' not found in DynamoDB')
+                print(name + ' not found in DynamoDB')
                 return
         except Exception as error:
             print(error)
@@ -115,7 +118,7 @@ class AccountClient:
         dynamodb = boto3.resource('dynamodb', self.__region)
         table = dynamodb.Table(self.__ddbTableName)
         response_json = json.loads(response)
-        print("saved account value to ddb:",response_json)
+        print("saved account value to ddb:", response_json)
         table.put_item(Item={
             'name': name,
             'keyId': keyId,
@@ -126,33 +129,38 @@ class AccountClient:
 
 
 def main():
-    # check dynamodb AccountTable exists or not, if not exists, create it
-    my_config = Config(
-    region_name = 'ap-southeast-1'
+    # YOU SHOULD REPLACE BELOW PARAMETER WITH YOUR OWN
+    region = 'ap-nortieast-1'
+    keyId = 'c314a998-b78f-44f8-8c12-6f426ccf89fd'
+    walletAccountName = 'account1'
+    tableName = 'AccountTable'
+
+    config = Config(
+        region_name=region
     )
 
-    client = boto3.client('dynamodb', config=my_config)
+    client = boto3.client('dynamodb', config=config)
     try:
-        client.describe_table(TableName='AccountTable')
+        client.describe_table(TableName=tableName)
     except:
-         client.create_table(
-            TableName = "AccountTable",
-            KeySchema = [
+        client.create_table(
+            TableName=tableName,
+            KeySchema=[
                 {'AttributeName': 'keyId', 'KeyType': 'HASH'},
                 {'AttributeName': 'name', 'KeyType': 'RANGE'}
             ],
-            AttributeDefinitions = [
+            AttributeDefinitions=[
                 {'AttributeName': 'keyId', 'AttributeType': 'S'},
                 {'AttributeName': 'name', 'AttributeType': 'S'}
             ],
-            ProvisionedThroughput = {
+            ProvisionedThroughput={
                 'ReadCapacityUnits': 10,
                 'WriteCapacityUnits': 10
             }
         )
     # generate a client and demo it
-    client = AccountClient("ap-southeast-1", "AccountTable", "c314a998-b78f-44f8-8c12-6f426ccf89fd", 16, 5000)
-    client.generateAccount("Account2")
+    client = AccountClient(region, tableName, keyId, 16, 5000)
+    client.generateAccount(walletAccountName)
 
     # test transaction
     transaction = {
@@ -161,10 +169,10 @@ def main():
         'nonce': 0,
         'chainId': 4,
         'gas': 100000,
-        'gasPrice' :234567897654321
+        'gasPrice': 234567897654321
     }
     # with defined kms id, you should replace it with yours
-    signedValue = client.sign('c314a998-b78f-44f8-8c12-6f426ccf89fd', "Account2", transaction)
+    signedValue = client.sign(keyId, walletAccountName, transaction)
     print("signed with value: ", signedValue)
 
 if __name__ == '__main__':
