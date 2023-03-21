@@ -4,7 +4,7 @@
 we use dynamodb to store the wallet related content, table designed as below.
 
 Table name
-- walletTable
+- AccountTable
 
 Colume
 - keyId: kms alias id which used for encryption for the private key
