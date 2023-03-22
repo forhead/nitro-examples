@@ -1,5 +1,5 @@
 #!/bin/bash
-FILE=walletenclave.eif
+FILE=enclaveserver.eif
 if [ -f "$FILE" ]; then
     rm $FILE
 fi
@@ -16,6 +16,6 @@ pkill vsock-proxy
 docker build -t enclaveserver:latest .
 nitro-cli build-enclave --docker-uri enclaveserver:latest  --output-file enclaveserver.eif > EnclaveImage.log
 
-vsock-proxy 8000 kms.ap-southeast-1.amazonaws.com 443 &
+vsock-proxy 8000 kms.ap-northeast-1.amazonaws.com 443 &
 
 nitro-cli run-enclave --cpu-count 4 --memory 5240 --enclave-cid 16 --eif-path enclaveserver.eif --debug-mode --attach-console

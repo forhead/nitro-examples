@@ -132,7 +132,7 @@ def main():
     # YOU SHOULD REPLACE BELOW PARAMETER WITH YOUR OWN
     # 0f360b0f-1ad4-4c6b-b405-932d2f606779
     region = 'ap-northeast-1'
-    keyId = 'c314a998-b78f-44f8-8c12-6f426ccf89fd'
+    keyId = '0f360b0f-1ad4-4c6b-b405-932d2f606779'
     walletAccountName = 'account1'
     tableName = 'AccountTable'
 
