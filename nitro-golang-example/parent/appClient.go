@@ -16,20 +16,15 @@ import  (
 
 """
 dynamodb design
-table name: demoWalletTable
+table name: AccountTable
 
 colume:
-walletName: wallet name for this wallet
-encryptedPrivateKey: encrypted wallet private key
-publicKey: the public key of the wallet
-encryptedDatakey: the data key used to encrypt the private key
 keyId: kms alias id which used for encryption for the private key
+Name: account name for this Account
+encryptedPrivateKey: encrypted Account private key
+address: the address of the Account
+encryptedDataKey: the data key used to encrypt the private key
 """
-
-
-
-
-
 
 // response
 // generate encryptedDatakey
@@ -54,7 +49,7 @@ type generateWalletResponse struct{
 	encryptedDatakey string,
 }
 
-func (pc parentClient) generateWallet(walletName string){
+func (pc parentClient) generateAccount(walletName string){
 	credential := getIAMToken()
 
 	socket, err := unix.Socket(unix.AF_VSOCK, unix.SOCK_STREAM, 0)
