@@ -3,7 +3,7 @@ FROM amazonlinux
 WORKDIR /app
 
 COPY kmstool_enclave_cli ./
-COPY libnsm.so ./
+COPY libnsm.so /usr/lib64/
 COPY enclaveServer ./
 
 ENV REGION ap-northeast-1

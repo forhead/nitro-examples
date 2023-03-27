@@ -26,11 +26,11 @@ import (
 // encryptedDataKey: the data key used to encrypt the private key
 
 type accountTable struct {
-	keyId               string
-	name                string
-	address             string
-	encryptedDataKey    string
-	encryptedPrivateKey string
+	KeyId               string
+	Name                string
+	Address             string
+	EncryptedDataKey    string
+	EncryptedPrivateKey string
 }
 
 type accountClient struct {
@@ -57,45 +57,6 @@ type requestPlayload struct {
 	EncryptedPrivateKey string
 	EncryptedDataKey    string
 	Transaction         string
-}
-
-func (ac accountClient) saveEncryptWalletToDDB(name string, response generateAccountResponse, keyId string) {
-	// Create Session
-	sess, err := session.NewSession(&aws.Config{
-		Region: aws.String(ac.region)},
-	)
-
-	if err != nil {
-		panic(err)
-	}
-
-	svc := dynamodb.New(sess)
-
-	at := accountTable{
-		name:                name,
-		keyId:               keyId,
-		address:             response.Address,
-		encryptedPrivateKey: response.EncryptedPrivateKey,
-		encryptedDataKey:    response.EncryptedDataKey,
-	}
-
-	av, err := dynamodbattribute.MarshalMap(at)
-
-	if err != nil {
-		fmt.Println("Got error marshalling map:")
-		fmt.Println(err.Error())
-	}
-
-	input := &dynamodb.PutItemInput{
-		Item:      av,
-		TableName: aws.String(ac.ddbTableName),
-	}
-
-	_, err = svc.PutItem(input)
-	if err != nil {
-		fmt.Println("Got error calling PutItem:")
-		fmt.Println(err.Error())
-	}
 }
 
 func (ac accountClient) generateAccount(name string) {
@@ -135,15 +96,56 @@ func (ac accountClient) generateAccount(name string) {
 	unix.Write(socket, b)
 
 	// receive data from the server and save to dynamodb with the walletName
-	response := []byte{}
-	unix.Read(socket, response)
-
+	response := make([]byte, 4096)
+	n, err := unix.Read(socket, response)
+	if err != nil {
+		fmt.Println(err)
+	}
 	var responseStruct generateAccountResponse
-	json.Unmarshal(response, &responseStruct)
-	fmt.Println(string(response))
+	json.Unmarshal(response[:n], &responseStruct)
 
-	// ac.saveEncryptWalletToDDB(name, responseStruct, ac.keyId)
+	ac.saveEncryptAccountToDDB(name, responseStruct, ac.keyId)
 
+}
+
+func (ac accountClient) saveEncryptAccountToDDB(name string, response generateAccountResponse, keyId string) {
+	// Create Session
+	sess, err := session.NewSession(&aws.Config{
+		Region: aws.String(ac.region)},
+	)
+
+	if err != nil {
+		panic(err)
+	}
+
+	svc := dynamodb.New(sess)
+
+	at := accountTable{
+		Name:                name,
+		KeyId:               keyId,
+		Address:             response.Address,
+		EncryptedPrivateKey: response.EncryptedPrivateKey,
+		EncryptedDataKey:    response.EncryptedDataKey,
+	}
+
+	av, err := dynamodbattribute.MarshalMap(at)
+
+	if err != nil {
+		fmt.Println("Got error marshalling map:")
+		fmt.Println(err.Error())
+	}
+
+	input := &dynamodb.PutItemInput{
+		Item:      av,
+		TableName: aws.String(ac.ddbTableName),
+	}
+
+	_, err = svc.PutItem(input)
+	if err != nil {
+		fmt.Println("Got error calling PutItem:")
+		fmt.Println(err.Error())
+	}
+	fmt.Println("account", name, "info is saved to dynamodb")
 }
 
 func (ac accountClient) sign(keyId string, name string, transaction string) {
@@ -177,8 +179,8 @@ func (ac accountClient) sign(keyId string, name string, transaction string) {
 	if err != nil {
 		panic(fmt.Sprintf("Failed to unmarshal Record, %v", err))
 	}
-	var encryptedDataKey = at.encryptedDataKey
-	var encryptedPrivateKey = at.encryptedPrivateKey
+	var encryptedDataKey = at.EncryptedDataKey
+	var encryptedPrivateKey = at.EncryptedPrivateKey
 
 	socket, err := unix.Socket(unix.AF_VSOCK, unix.SOCK_STREAM, 0)
 	if err != nil {

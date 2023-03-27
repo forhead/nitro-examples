@@ -38,14 +38,14 @@ type requestPlayload struct {
 }
 
 type generateDataKeyResponse struct {
-	datakey_plaintext  string
-	datakey_ciphertext string
+	datakey_plaintext_base64  string
+	datakey_ciphertext_base64 string
 }
 
 type generateAccountResponse struct {
-	encryptedPrivateKey string
-	address             string
-	encryptedDataKey    string
+	EncryptedPrivateKey string
+	Address             string
+	EncryptedDataKey    string
 }
 
 func call_kms_generate_datakey(aws_access_key_id string, aws_secret_access_key string, aws_session_token string, keyId string) generateDataKeyResponse {
@@ -65,15 +65,14 @@ func call_kms_generate_datakey(aws_access_key_id string, aws_secret_access_key s
 	cmd.Stdout = &out
 	err := cmd.Run()
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println("kms generate datakey error:", err)
 	}
-	datakey_split := strings.Split(string(out.Bytes()), "\n")
-	datakeyCipherText := strings.TrimSpace(strings.Split(datakey_split[0], ":")[1])
-	datakeyPlaintext := strings.TrimSpace(strings.Split(datakey_split[1], ":")[1])
-	result.datakey_plaintext = datakeyPlaintext
-	result.datakey_ciphertext = datakeyCipherText
 
-	fmt.Println("generate datakey result:", result)
+	datakey_split := strings.Split(out.String(), "\n")
+	datakeyCiphertext_base64 := strings.TrimSpace(strings.Split(datakey_split[0], ":")[1])
+	datakeyPlaintext_base64 := strings.TrimSpace(strings.Split(datakey_split[1], ":")[1])
+	result.datakey_plaintext_base64 = datakeyPlaintext_base64
+	result.datakey_ciphertext_base64 = datakeyCiphertext_base64
 
 	return result
 }
@@ -81,7 +80,7 @@ func call_kms_generate_datakey(aws_access_key_id string, aws_secret_access_key s
 func call_kms_decrypt(aws_access_key_id string, aws_secret_access_key string, aws_session_token string, ciphertext string) string {
 	cmd := exec.Command(
 		"/app/kmstool_enclave_cli",
-		"genkey",
+		"decrypt",
 		"--region", os.Getenv("REGION"),
 		"--proxy-port", "8000",
 		"--aws-access-key-id", aws_access_key_id,
@@ -123,15 +122,17 @@ func generateAccount(aws_access_key_id string, aws_secret_access_key string, aws
 	fmt.Println("Address:", address)
 
 	datakeys := call_kms_generate_datakey(aws_access_key_id, aws_secret_access_key, aws_session_token, keyId)
-	datakey_plaintext := datakeys.datakey_plaintext
-	datakey_ciphertext := datakeys.datakey_ciphertext
+	datakey_plaintext_base64 := datakeys.datakey_plaintext_base64
+	datakey_ciphertext_base64 := datakeys.datakey_ciphertext_base64
+
+	datakey_plaintext, _ := base64.StdEncoding.DecodeString(datakey_plaintext_base64)
 
 	encryptedPrivateKey := encrypt([]byte(datakey_plaintext), string(privateKeyBytes))
 
 	response := generateAccountResponse{
-		encryptedPrivateKey: encryptedPrivateKey,
-		address:             address,
-		encryptedDataKey:    datakey_ciphertext,
+		EncryptedPrivateKey: encryptedPrivateKey,
+		Address:             address,
+		EncryptedDataKey:    datakey_ciphertext_base64,
 	}
 	return response
 }
@@ -260,18 +261,12 @@ func main() {
 			fmt.Println(err.Error())
 		}
 
-		fmt.Println("playload is:", playload)
-
-		fmt.Println("apicall is:", playload.ApiCall)
-
-		// str := string(requestData)
+		fmt.Println("apicall:", playload.ApiCall)
 
 		apiCall := playload.ApiCall
 		fmt.Println(apiCall)
 
 		if apiCall == "generateAccount" {
-			fmt.Println("generateAccount request")
-			fmt.Println("request playload: ", playload)
 			result := generateAccount(playload.Aws_access_key_id, playload.Aws_secret_access_key,
 				playload.Aws_session_token, playload.KeyId)
 
@@ -281,7 +276,7 @@ func main() {
 			}
 			//  send back to parent instance
 			unix.Write(nfd, b)
-			fmt.Println("generateWallet finished")
+			fmt.Println("generateAccount finished")
 		} else if apiCall == "sign" {
 			fmt.Println("sign request")
 			// signedStr = server.sign(
