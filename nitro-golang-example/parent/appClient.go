@@ -1,217 +1,254 @@
 package main
-import  (
-        "fmt"
-        "io"
-        "log"
-        "net/http"
-        "encoding/json"
-        "golang.org/x/sys/unix"
 
-		// "github.com/aws/aws-sdk-go-v2/aws"
-		// "github.com/aws/aws-sdk-go-v2/config"
-		// "github.com/aws/aws-sdk-go-v2/service/dynamodb"
-		// "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
 
-    )
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 
-"""
-dynamodb design
-table name: AccountTable
+	"golang.org/x/sys/unix"
+)
 
-colume:
-keyId: kms alias id which used for encryption for the private key
-Name: account name for this Account
-encryptedPrivateKey: encrypted Account private key
-address: the address of the Account
-encryptedDataKey: the data key used to encrypt the private key
-"""
+// dynamodb design
+// table name: AccountTable
 
-// response
-// generate encryptedDatakey
-// 'encryptedPrivateKey': encrypted_privatekey,
-//             'publicKey': public_key_hex,
-//             'encryptedDatakey': encrypted_datakey
+// colume:
+// keyId: kms alias id which used for encryption for the private key
+// Name: account name for this Account
+// encryptedPrivateKey: encrypted Account private key
+// address: the address of the Account
+// encryptedDataKey: the data key used to encrypt the private key
 
-// sign
-// content = sk.sign(bmessage)  # Signature in bytes
+type accountTable struct {
+	keyId               string
+	name                string
+	address             string
+	encryptedDataKey    string
+	encryptedPrivateKey string
+}
 
-type parentClient struct{
-	region string
+type accountClient struct {
+	region       string
 	ddbTableName string
-    keyId string
-    cid uint32
-    port uint32
+	keyId        string
+	cid          uint32
+	port         uint32
 }
 
-type generateWalletResponse struct{
-	encryptedPrivateKey string,
-	publicKey string,
-	encryptedDatakey string,
+type generateAccountResponse struct {
+	encryptedPrivateKey string
+	address             string
+	encryptedDataKey    string
 }
 
-func (pc parentClient) generateAccount(walletName string){
-	credential := getIAMToken()
-
-	socket, err := unix.Socket(unix.AF_VSOCK, unix.SOCK_STREAM, 0)
-    if err != nil{
-        log.Fatal(err)
-    }
-
-    sockaddr := &unix.SockaddrVM{
-        CID : pc.cid,
-        Port : pc.port,
-    }
-
-    err = unix.Connect(socket, sockaddr) 
-    if err != nil {
-       	log.Fatal(err)
-    }
-
-    data, err := json.Marshal(&credential)
-    unix.Write(socket,[]byte(data))
-
-	playload := map[string]string{
-		"apiCall":"generateWallet",
-		"aws-access-key-id": credential.aws_access_key_id,
-		"aws-secret-access-key" : credential.aws_secret_access_key,
-		"aws-session-token" : credential.aws_session_token,
-		"keyId":pc.keyId,
-	}
-	// Send AWS credential and KMS keyId to the server running in enclave
-	b, err := json.Marshal(playload)
-	unix.Write(socket,b)
-
-	// receive data from the server and save to dynamodb with the walletName
-	response := []byte{}
-	unix.Read(socket,response)
-	fmt.Println(string(response))
-
-	// __saveEncryptWalletToDDB(walletName, response, self.__keyId)
-	
-}
-
-func (pc parentClient) sign(keyId string, walletName string, message string){
-	credential := getIAMToken()
-
-	socket, err := unix.Socket(unix.AF_VSOCK, unix.SOCK_STREAM, 0)
-    if err != nil{
-        log.Fatal(err)
-    }
-
-    sockaddr := &unix.SockaddrVM{
-        CID : pc.cid,
-        Port : pc.port,
-    }
-
-    err = unix.Connect(socket, sockaddr) 
-    if err != nil {
-       	log.Fatal(err)
-    }
-
-    data, err := json.Marshal(&credential)
-    unix.Write(socket,[]byte(data))
-
-	var encryptoedPrivateKey = "" 
-	var encryptedDatakey = ""
-
-	playload := map[string]string{
-		"apiCall":"generateWallet",
-		"aws-access-key-id": credential.aws_access_key_id,
-		"aws-secret-access-key" : credential.aws_secret_access_key,
-		"aws-session-token" : credential.aws_session_token,
-		"encryptedPrivateKey" : encryptoedPrivateKey,
-		"encryptedDatakey" :encryptedDatakey,
-		"keyId":pc.keyId,
-		"message": message,
-	}
-	// Send AWS credential and KMS keyId to the server running in enclave
-	b, err := json.Marshal(playload)
-	unix.Write(socket,b)
-
-	// receive data from the server and save to dynamodb with the walletName
-	response := []byte{}
-	unix.Read(socket,response)
-	fmt.Println(string(response))
-}
-
-func (pc parentClient) saveEncryptWalletToDDB(walletName string, response []byte){
-// 	cfg, err := config.LoadDefaultConfig(context.TODO(), func(o *config.LoadOptions) error {
-//         o.Region = pc.region
-//         return nil
-//     })
-//     if err != nil {
-//         panic(err)
-//     }
-// // walletName: wallet name for this wallet
-// // encryptedPrivateKey: encrypted wallet private key
-// // publicKey: the public key of the wallet
-// // encryptedDatakey: the data key used to encrypt the private key
-// // keyId: kms alias id which used for encryption for the private key
-
-// // 'encryptedPrivateKey': encrypted_privatekey,
-// // 'publicKey': public_key_hex,
-// // 'encryptedDatakey': encrypted_datakey
-// 	var table ddbTable
-// 	json.Unmarshal(body, &result)
-// 	svc := dynamodb.NewFromConfig(cfg)
-// 	out, err := svc.PutItem(context.TODO(), &dynamodb.PutItemInput{
-//         TableName: pc.tableName,
-//         Item: map[string]types.AttributeValue{
-//             "walletName":    &types.AttributeValueMemberS{Value: "12346"},
-//             "encryptedPrivateKey":  &types.AttributeValueMemberS{Value: "John Doe"},
-//             "publicKey": &types.AttributeValueMemberS{Value: "john@doe.io"},
-// 			"encryptedDatakey":,
-// 			"keyId":,
-//         },
-//     })
-
-}
-
-
-type iamCredential struct {
-	aws_access_key_id string
+type requestPlayload struct {
+	apiCall               string
+	aws_access_key_id     string
 	aws_secret_access_key string
-	aws_session_token string
+	aws_session_token     string
+	keyId                 string // this is for generateAccount
+	//this 3 is for sign
+	encryptedPrivateKey string
+	encryptedDataKey    string
+	transaction         string
+}
+
+func (ac accountClient) saveEncryptWalletToDDB(name string, response generateAccountResponse, keyId string) {
+	// Create Session
+	sess, err := session.NewSession(&aws.Config{
+		Region: aws.String(ac.region)},
+	)
+
+	if err != nil {
+		panic(err)
+	}
+
+	svc := dynamodb.New(sess)
+
+	at := accountTable{
+		name:                name,
+		keyId:               keyId,
+		address:             response.address,
+		encryptedPrivateKey: response.encryptedPrivateKey,
+		encryptedDataKey:    response.encryptedDataKey,
+	}
+
+	av, err := dynamodbattribute.MarshalMap(at)
+
+	if err != nil {
+		fmt.Println("Got error marshalling map:")
+		fmt.Println(err.Error())
+	}
+
+	input := &dynamodb.PutItemInput{
+		Item:      av,
+		TableName: aws.String(ac.ddbTableName),
+	}
+
+	_, err = svc.PutItem(input)
+	if err != nil {
+		fmt.Println("Got error calling PutItem:")
+		fmt.Println(err.Error())
+	}
+}
+
+func (ac accountClient) generateAccount(name string) {
+	credential := getIAMToken()
+
+	socket, err := unix.Socket(unix.AF_VSOCK, unix.SOCK_STREAM, 0)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	sockaddr := &unix.SockaddrVM{
+		CID:  ac.cid,
+		Port: ac.port,
+	}
+
+	err = unix.Connect(socket, sockaddr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var playload requestPlayload
+	playload.apiCall = "generateAccount"
+	playload.aws_access_key_id = credential.aws_access_key_id
+	playload.aws_secret_access_key = credential.aws_secret_access_key
+	playload.aws_session_token = credential.aws_session_token
+	playload.keyId = ac.keyId
+
+	// Send AWS credential and KMS keyId to the server running in enclave
+	b, err := json.Marshal(playload)
+	if err != nil {
+		panic(err)
+	}
+	unix.Write(socket, b)
+
+	// receive data from the server and save to dynamodb with the walletName
+	response := []byte{}
+	unix.Read(socket, response)
+
+	var responseStruct generateAccountResponse
+	json.Unmarshal(response, &responseStruct)
+	fmt.Println(string(response))
+
+	ac.saveEncryptWalletToDDB(name, responseStruct, ac.keyId)
+
+}
+
+func (ac accountClient) sign(keyId string, name string, transaction string) {
+	credential := getIAMToken()
+
+	// get item from dynamodb
+	sess, err := session.NewSession(&aws.Config{
+		Region: aws.String(ac.region)},
+	)
+
+	if err != nil {
+		panic(err)
+	}
+
+	svc := dynamodb.New(sess)
+
+	result, err := svc.GetItem(&dynamodb.GetItemInput{
+		TableName: aws.String(ac.ddbTableName),
+		Key: map[string]*dynamodb.AttributeValue{
+			"keyId": {
+				N: aws.String(keyId),
+			},
+			"name": {
+				S: aws.String(name),
+			},
+		},
+	})
+
+	var at accountTable
+	err = dynamodbattribute.UnmarshalMap(result.Item, &at)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to unmarshal Record, %v", err))
+	}
+	var encryptedDataKey = at.encryptedDataKey
+	var encryptedPrivateKey = at.encryptedPrivateKey
+
+	socket, err := unix.Socket(unix.AF_VSOCK, unix.SOCK_STREAM, 0)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	sockaddr := &unix.SockaddrVM{
+		CID:  ac.cid,
+		Port: ac.port,
+	}
+
+	err = unix.Connect(socket, sockaddr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	playload := map[string]string{
+		"apiCall":               "generateWallet",
+		"aws-access-key-id":     credential.aws_access_key_id,
+		"aws-secret-access-key": credential.aws_secret_access_key,
+		"aws-session-token":     credential.aws_session_token,
+		"encryptedPrivateKey":   encryptedPrivateKey,
+		"encryptedDataKey":      encryptedDataKey,
+		"keyId":                 keyId,
+		"transaction":           transaction,
+	}
+	// Send AWS credential and KMS keyId to the server running in enclave
+	b, err := json.Marshal(playload)
+	unix.Write(socket, b)
+
+	// receive data from the server and save to dynamodb with the walletName
+	response := []byte{}
+	unix.Read(socket, response)
+	fmt.Println(string(response))
+}
+
+type iamCredentialResponse struct {
+	aws_access_key_id     string
+	aws_secret_access_key string
+	aws_session_token     string
 }
 
 // struct of response from metadata get function
-type iamCredentialToken struct{
-	Code string
-	LastUpdated string
-	Type string
-	AccessKeyId string
+type iamCredentialToken struct {
+	Code            string
+	LastUpdated     string
+	Type            string
+	AccessKeyId     string
 	SecretAccessKey string
-	Token string
-	Expiration string
+	Token           string
+	Expiration      string
 }
 
 /**
 * get the credential of the IAM Role attached on EC2
-*/
-func getIAMToken() iamCredential{
-	var token iamCredential
+ */
+func getIAMToken() iamCredentialResponse {
+	var token iamCredentialResponse
 	res, err := http.Get("http://169.254.169.254/latest/meta-data/iam/security-credentials/")
-
-	if err != nil{
+	if err != nil {
 		log.Fatal(err)
 	}
-
 	body, err := io.ReadAll(res.Body)
 	res.Body.Close()
 	instanceProfileName := string(body)
-	profileUri :=fmt.Sprintf("http://169.254.169.254/latest/meta-data/iam/security-credentials/%s",instanceProfileName)
+	profileUri := fmt.Sprintf("http://169.254.169.254/latest/meta-data/iam/security-credentials/%s", instanceProfileName)
 	res, err = http.Get(profileUri)
-
-	if err != nil{
+	if err != nil {
 		log.Fatal(err)
 	}
-
 	body, err = io.ReadAll(res.Body)
 	res.Body.Close()
-
 	var result iamCredentialToken
 	json.Unmarshal(body, &result)
-
 	token.aws_access_key_id = result.AccessKeyId
 	token.aws_secret_access_key = result.SecretAccessKey
 	token.aws_session_token = result.Token
@@ -219,8 +256,7 @@ func getIAMToken() iamCredential{
 	return token
 }
 
-
-func main(){
-	client := parentClient{"ap-southeast-1", "demoWalletTable" ,"keyid",16,5000}
-	client.generateWallet("wallet1")
+func main() {
+	client := accountClient{"ap-northheast-1", "AccountTable", "0f360b0f-1ad4-4c6b-b405-932d2f606779", 16, 5000}
+	client.generateAccount("wallet1")
 }
