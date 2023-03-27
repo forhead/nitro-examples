@@ -26,15 +26,15 @@ import (
 )
 
 type requestPlayload struct {
-	apiCall               string
-	aws_access_key_id     string
-	aws_secret_access_key string
-	aws_session_token     string
-	keyId                 string // this is for generateAccount
+	ApiCall               string
+	Aws_access_key_id     string
+	Aws_secret_access_key string
+	Aws_session_token     string
+	KeyId                 string // this is for generateAccount
 	//this 3 is for sign
-	encryptedPrivateKey string
-	encryptedDataKey    string
-	transaction         string
+	EncryptedPrivateKey string
+	EncryptedDataKey    string
+	Transaction         string
 }
 
 type generateDataKeyResponse struct {
@@ -240,49 +240,62 @@ func main() {
 	}
 
 	for {
-		peerFd, fromSockAdde, err := unix.Accept(fd)
+		nfd, fromSockAdde, err := unix.Accept(fd)
 		if err != nil {
 			log.Fatal("Accept ", err)
 		}
 		fmt.Println("fromSockAdde: ", fromSockAdde)
-		fmt.Println("peerFd is: ", peerFd)
+		fmt.Println("conn is: ", nfd)
 
-		var requestData []byte
+		requestData := make([]byte, 4096)
 		var playload requestPlayload
 
-		unix.Recvfrom(peerFd, requestData, 0)
-		json.Unmarshal(requestData, &playload)
+		n, err := unix.Read(nfd, requestData)
+		if err != nil {
+			log.Fatal("Accept ", err)
+		}
 
-		apiCall := playload.apiCall
+		err = json.Unmarshal(requestData[:n], &playload)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+
+		fmt.Println("playload is:", playload)
+
+		fmt.Println("apicall is:", playload.ApiCall)
+
+		// str := string(requestData)
+
+		apiCall := playload.ApiCall
 		fmt.Println(apiCall)
 
 		if apiCall == "generateAccount" {
 			fmt.Println("generateAccount request")
 			fmt.Println("request playload: ", playload)
-			result := generateAccount(playload.aws_access_key_id, playload.aws_secret_access_key,
-				playload.aws_session_token, playload.keyId)
+			result := generateAccount(playload.Aws_access_key_id, playload.Aws_secret_access_key,
+				playload.Aws_session_token, playload.KeyId)
 
 			b, err := json.Marshal(result)
 			if err != nil {
 				fmt.Println(err)
 			}
 			//  send back to parent instance
-			unix.Write(peerFd, b)
+			unix.Write(nfd, b)
 			fmt.Println("generateWallet finished")
 		} else if apiCall == "sign" {
 			fmt.Println("sign request")
 			// signedStr = server.sign(
 			//     credential, encryptedPrivateKey, encryptedDatakey, message)
 			// c.send(signedStr)
-			result := sign(playload.aws_access_key_id, playload.aws_secret_access_key, playload.aws_session_token,
-				playload.encryptedDataKey, playload.encryptedPrivateKey, playload.transaction)
+			result := sign(playload.Aws_access_key_id, playload.Aws_secret_access_key, playload.Aws_session_token,
+				playload.EncryptedDataKey, playload.EncryptedPrivateKey, playload.Transaction)
 
 			fmt.Println("sign fihished")
-			unix.Write(peerFd, []byte(result))
+			unix.Write(nfd, []byte(result))
 		} else {
 			fmt.Println("nothing to do")
 		}
-		unix.Close(peerFd)
+		unix.Close(nfd)
 	}
 
 }

@@ -42,21 +42,21 @@ type accountClient struct {
 }
 
 type generateAccountResponse struct {
-	encryptedPrivateKey string
-	address             string
-	encryptedDataKey    string
+	EncryptedPrivateKey string
+	Address             string
+	EncryptedDataKey    string
 }
 
 type requestPlayload struct {
-	apiCall               string
-	aws_access_key_id     string
-	aws_secret_access_key string
-	aws_session_token     string
-	keyId                 string // this is for generateAccount
+	ApiCall               string
+	Aws_access_key_id     string
+	Aws_secret_access_key string
+	Aws_session_token     string
+	KeyId                 string // this is for generateAccount
 	//this 3 is for sign
-	encryptedPrivateKey string
-	encryptedDataKey    string
-	transaction         string
+	EncryptedPrivateKey string
+	EncryptedDataKey    string
+	Transaction         string
 }
 
 func (ac accountClient) saveEncryptWalletToDDB(name string, response generateAccountResponse, keyId string) {
@@ -74,9 +74,9 @@ func (ac accountClient) saveEncryptWalletToDDB(name string, response generateAcc
 	at := accountTable{
 		name:                name,
 		keyId:               keyId,
-		address:             response.address,
-		encryptedPrivateKey: response.encryptedPrivateKey,
-		encryptedDataKey:    response.encryptedDataKey,
+		address:             response.Address,
+		encryptedPrivateKey: response.EncryptedPrivateKey,
+		encryptedDataKey:    response.EncryptedDataKey,
 	}
 
 	av, err := dynamodbattribute.MarshalMap(at)
@@ -116,17 +116,21 @@ func (ac accountClient) generateAccount(name string) {
 		log.Fatal(err)
 	}
 
-	var playload requestPlayload
-	playload.apiCall = "generateAccount"
-	playload.aws_access_key_id = credential.aws_access_key_id
-	playload.aws_secret_access_key = credential.aws_secret_access_key
-	playload.aws_session_token = credential.aws_session_token
-	playload.keyId = ac.keyId
+	playload := requestPlayload{
+		ApiCall:               "generateAccount",
+		Aws_access_key_id:     credential.aws_access_key_id,
+		Aws_secret_access_key: credential.aws_secret_access_key,
+		Aws_session_token:     credential.aws_session_token,
+		KeyId:                 ac.keyId,
+		EncryptedPrivateKey:   "",
+		EncryptedDataKey:      "",
+		Transaction:           "",
+	}
 
 	// Send AWS credential and KMS keyId to the server running in enclave
 	b, err := json.Marshal(playload)
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
 	}
 	unix.Write(socket, b)
 
@@ -138,7 +142,7 @@ func (ac accountClient) generateAccount(name string) {
 	json.Unmarshal(response, &responseStruct)
 	fmt.Println(string(response))
 
-	ac.saveEncryptWalletToDDB(name, responseStruct, ac.keyId)
+	// ac.saveEncryptWalletToDDB(name, responseStruct, ac.keyId)
 
 }
 
@@ -201,8 +205,12 @@ func (ac accountClient) sign(keyId string, name string, transaction string) {
 		"keyId":                 keyId,
 		"transaction":           transaction,
 	}
+	fmt.Println(playload)
 	// Send AWS credential and KMS keyId to the server running in enclave
 	b, err := json.Marshal(playload)
+
+	fmt.Println(b)
+
 	unix.Write(socket, b)
 
 	// receive data from the server and save to dynamodb with the walletName
@@ -257,6 +265,6 @@ func getIAMToken() iamCredentialResponse {
 }
 
 func main() {
-	client := accountClient{"ap-northheast-1", "AccountTable", "0f360b0f-1ad4-4c6b-b405-932d2f606779", 16, 5000}
+	client := accountClient{"ap-northeast-1", "AccountTable", "0f360b0f-1ad4-4c6b-b405-932d2f606779", 16, 5000}
 	client.generateAccount("wallet1")
 }

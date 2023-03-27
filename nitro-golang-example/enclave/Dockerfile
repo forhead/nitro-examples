@@ -6,6 +6,8 @@ COPY kmstool_enclave_cli ./
 COPY libnsm.so ./
 COPY enclaveServer ./
 
+ENV REGION ap-northeast-1
+
 RUN chmod +x kmstool_enclave_cli
 RUN chmod +x enclaveServer
 
