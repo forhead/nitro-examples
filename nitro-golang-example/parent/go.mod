@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/aws/aws-sdk-go v1.44.229
+	github.com/ethereum/go-ethereum v1.11.5
 	golang.org/x/sys v0.6.0
 )
 
