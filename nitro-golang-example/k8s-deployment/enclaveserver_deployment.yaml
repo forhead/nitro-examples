@@ -17,25 +17,28 @@ spec:
         image: 774209043150.dkr.ecr.ap-northeast-1.amazonaws.com/enclaveserverk8s:latest
         command: ["/home/run.sh"]
         imagePullPolicy: Always
-        resources:
-          limits:
-            aws.ec2.nitro/nitro_enclaves: "1"
-            hugepages-2Mi: 4096Mi
-            cpu: 4000m
-          requests:
-            aws.ec2.nitro/nitro_enclaves: "1"
         volumeMounts:
         - mountPath: /hugepages-2Mi
           name: hugepage-2mi
           readOnly: false
           # Enable if 1Gi pages are required
-          #- mountPath: /hugepages-1Gi
-          #  name: hugepage-1gi
-          #  readOnly: false
+        # - mountPath: /hugepages-1Gi
+        #   name: hugepage-1gi
+        #   readOnly: false
+        resources:
+          limits:
+            aws.ec2.nitro/nitro_enclaves: "1"
+            hugepages-2Mi: 768Mi
+            cpu: 4000m
+          requests:
+            aws.ec2.nitro/nitro_enclaves: "1"
       volumes:
       - name: hugepage-2mi
         emptyDir:
           medium: HugePages-2Mi
+      # - name: hugepage-1gi
+      #   emptyDir:
+      #     medium: HugePages
       tolerations:
       - effect: NoSchedule
         operator: Exists

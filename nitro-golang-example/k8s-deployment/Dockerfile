@@ -8,7 +8,7 @@ FROM amazonlinux:2 as full_image
 # Install packages
 #
 RUN amazon-linux-extras install aws-nitro-enclaves-cli && \
-    yum install aws-nitro-enclaves-cli-devel -y
+    yum install aws-nitro-enclaves-cli-devel jq -y
 
 WORKDIR /ne-deps
 
@@ -18,6 +18,7 @@ RUN BINS="\
     /usr/bin/nitro-cli \
     /usr/bin/lscpu \
     /usr/bin/vsock-proxy \
+    /usr/bin/jq \
     " && \
     for bin in $BINS; do \
         { echo "$bin"; ldd "$bin" | grep -Eo "/.*lib.*/[^ ]+"; } | \
