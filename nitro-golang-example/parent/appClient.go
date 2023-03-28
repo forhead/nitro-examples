@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 
 	"golang.org/x/sys/unix"
 )
@@ -148,9 +150,8 @@ func (ac accountClient) saveEncryptAccountToDDB(name string, response generateAc
 	fmt.Println("account", name, "info is saved to dynamodb")
 }
 
-func (ac accountClient) sign(keyId string, name string, transaction string) {
+func (ac accountClient) sign(keyId string, name string, transaction string) string {
 	credential := getIAMToken()
-
 	// get item from dynamodb
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String(ac.region)},
@@ -162,17 +163,21 @@ func (ac accountClient) sign(keyId string, name string, transaction string) {
 
 	svc := dynamodb.New(sess)
 
-	result, err := svc.GetItem(&dynamodb.GetItemInput{
+	result, _ := svc.GetItem(&dynamodb.GetItemInput{
 		TableName: aws.String(ac.ddbTableName),
 		Key: map[string]*dynamodb.AttributeValue{
-			"keyId": {
-				N: aws.String(keyId),
+			"KeyId": {
+				S: aws.String(keyId),
 			},
-			"name": {
+			"Name": {
 				S: aws.String(name),
 			},
 		},
 	})
+
+	if err != nil {
+		fmt.Println("ddb query err:", err)
+	}
 
 	var at accountTable
 	err = dynamodbattribute.UnmarshalMap(result.Item, &at)
@@ -181,6 +186,8 @@ func (ac accountClient) sign(keyId string, name string, transaction string) {
 	}
 	var encryptedDataKey = at.EncryptedDataKey
 	var encryptedPrivateKey = at.EncryptedPrivateKey
+
+	fmt.Println(at)
 
 	socket, err := unix.Socket(unix.AF_VSOCK, unix.SOCK_STREAM, 0)
 	if err != nil {
@@ -197,28 +204,31 @@ func (ac accountClient) sign(keyId string, name string, transaction string) {
 		log.Fatal(err)
 	}
 
-	playload := map[string]string{
-		"apiCall":               "generateWallet",
-		"aws-access-key-id":     credential.aws_access_key_id,
-		"aws-secret-access-key": credential.aws_secret_access_key,
-		"aws-session-token":     credential.aws_session_token,
-		"encryptedPrivateKey":   encryptedPrivateKey,
-		"encryptedDataKey":      encryptedDataKey,
-		"keyId":                 keyId,
-		"transaction":           transaction,
+	playload := requestPlayload{
+		ApiCall:               "sign",
+		Aws_access_key_id:     credential.aws_access_key_id,
+		Aws_secret_access_key: credential.aws_secret_access_key,
+		Aws_session_token:     credential.aws_session_token,
+		KeyId:                 "",
+		EncryptedPrivateKey:   encryptedPrivateKey,
+		EncryptedDataKey:      encryptedDataKey,
+		Transaction:           transaction,
 	}
-	fmt.Println(playload)
+
 	// Send AWS credential and KMS keyId to the server running in enclave
 	b, err := json.Marshal(playload)
-
-	fmt.Println(b)
-
+	if err != nil {
+		log.Fatal(err)
+	}
 	unix.Write(socket, b)
-
 	// receive data from the server and save to dynamodb with the walletName
-	response := []byte{}
-	unix.Read(socket, response)
-	fmt.Println(string(response))
+	response := make([]byte, 4096)
+	n, err := unix.Read(socket, response)
+	if err != nil {
+		fmt.Println(err)
+	}
+	signedValue := hexutil.Encode(response[:n])
+	return signedValue
 }
 
 type iamCredentialResponse struct {
@@ -247,7 +257,7 @@ func getIAMToken() iamCredentialResponse {
 	if err != nil {
 		log.Fatal(err)
 	}
-	body, err := io.ReadAll(res.Body)
+	body, _ := io.ReadAll(res.Body)
 	res.Body.Close()
 	instanceProfileName := string(body)
 	profileUri := fmt.Sprintf("http://169.254.169.254/latest/meta-data/iam/security-credentials/%s", instanceProfileName)
@@ -255,7 +265,7 @@ func getIAMToken() iamCredentialResponse {
 	if err != nil {
 		log.Fatal(err)
 	}
-	body, err = io.ReadAll(res.Body)
+	body, _ = io.ReadAll(res.Body)
 	res.Body.Close()
 	var result iamCredentialToken
 	json.Unmarshal(body, &result)
@@ -269,4 +279,22 @@ func getIAMToken() iamCredentialResponse {
 func main() {
 	client := accountClient{"ap-northeast-1", "AccountTable", "0f360b0f-1ad4-4c6b-b405-932d2f606779", 16, 5000}
 	client.generateAccount("wallet1")
+
+	//test sign
+	transaction := map[string]interface{}{
+		"value":    1000000000,
+		"to":       "0xF0109fC8DF283027b6285cc889F5aA624EaC1F55",
+		"nonce":    0,
+		"chainId":  4,
+		"gas":      100000,
+		"gasPrice": 234567897654321,
+	}
+
+	b := new(bytes.Buffer)
+	for key, value := range transaction {
+		fmt.Fprintf(b, "%s=\"%s\"\n", key, value)
+	}
+
+	signedValue := client.sign("0f360b0f-1ad4-4c6b-b405-932d2f606779", "wallet1", b.String())
+	fmt.Println("signedValue:", signedValue)
 }

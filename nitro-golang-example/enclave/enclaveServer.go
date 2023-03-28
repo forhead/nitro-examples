@@ -8,7 +8,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -18,8 +17,6 @@ import (
 	"strings"
 
 	"golang.org/x/sys/unix"
-
-	// "crypto/ecdsa"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -88,14 +85,14 @@ func call_kms_decrypt(aws_access_key_id string, aws_secret_access_key string, aw
 		"--aws-session-token", aws_session_token,
 		"--ciphertext", ciphertext)
 
+	fmt.Println("datakey:", ciphertext)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err := cmd.Run()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("kms call", err)
 	}
-	result := string(out.Bytes())
-
+	result := out.String()
 	fmt.Println("decrypt result:", result)
 	return result
 }
@@ -137,8 +134,28 @@ func generateAccount(aws_access_key_id string, aws_secret_access_key string, aws
 	return response
 }
 
-func sign(aws_access_key_id string, aws_secret_access_key string, aws_session_token string, encryptedDataKey string, encryptedPrivateKey string, transaction string) string {
-	return "sign"
+func sign(aws_access_key_id string, aws_secret_access_key string, aws_session_token string, encryptedDataKey string, encryptedPrivateKey string, transaction string) []byte {
+	datakey_plaintext_base64 := call_kms_decrypt(aws_access_key_id, aws_secret_access_key, aws_session_token, encryptedDataKey)
+	datakey_plaintext_base64_string := strings.TrimSpace(strings.Split(datakey_plaintext_base64, ":")[1])
+	datakey_plaintext, err := base64.StdEncoding.DecodeString(datakey_plaintext_base64_string)
+	if err != nil {
+		log.Fatal("datakey", err)
+	}
+	private_key := decrypt(datakey_plaintext, encryptedPrivateKey)
+	privateKey, err := crypto.ToECDSA([]byte(private_key))
+	if err != nil {
+		log.Fatal("privateKey error", err)
+	}
+	data := []byte(transaction)
+	hash := crypto.Keccak256Hash(data)
+	signature, err := crypto.Sign(hash.Bytes(), privateKey)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("hex:", hexutil.Encode(signature))
+	fmt.Println("byte", signature)
+
+	return signature
 }
 
 func encrypt(key []byte, message string) string {
@@ -189,8 +206,7 @@ func decrypt(key []byte, secure string) string {
 
 	//IF the length of the cipherText is less than 16 Bytes:
 	if len(cipherText) < aes.BlockSize {
-		err = errors.New("Ciphertext block size is too short!")
-		log.Fatal(err)
+		fmt.Println("Ciphertext block size is too short!")
 	}
 
 	iv := cipherText[:aes.BlockSize]
@@ -203,20 +219,6 @@ func decrypt(key []byte, secure string) string {
 	return string(cipherText)
 }
 
-type requestContext struct {
-	// all request will contains
-	apiCall                string //generateWallet and sign
-	_aws_access_key_id     string
-	_aws_secret_access_key string
-	_aws_session_token     string
-	// contains only in generateWallet
-	keyId string
-	// contains only in sign
-	encryptedPrivateKey string
-	encryptedDatakey    string
-	message             string
-}
-
 func main() {
 	fmt.Println("Start nitro enclave vsock server...")
 
@@ -224,7 +226,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	// Bind socket to cid 16, port 5000.
 	sockaddr := &unix.SockaddrVM{
 		CID:  unix.VMADDR_CID_ANY,
@@ -279,14 +280,11 @@ func main() {
 			fmt.Println("generateAccount finished")
 		} else if apiCall == "sign" {
 			fmt.Println("sign request")
-			// signedStr = server.sign(
-			//     credential, encryptedPrivateKey, encryptedDatakey, message)
-			// c.send(signedStr)
 			result := sign(playload.Aws_access_key_id, playload.Aws_secret_access_key, playload.Aws_session_token,
 				playload.EncryptedDataKey, playload.EncryptedPrivateKey, playload.Transaction)
-
+			fmt.Println("result is:", result)
+			unix.Write(nfd, result)
 			fmt.Println("sign fihished")
-			unix.Write(nfd, []byte(result))
 		} else {
 			fmt.Println("nothing to do")
 		}
