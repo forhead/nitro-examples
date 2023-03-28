@@ -13,7 +13,6 @@ import (
 	"log"
 	"os"
 	"os/exec"
-
 	"strings"
 
 	"golang.org/x/sys/unix"
@@ -290,5 +289,4 @@ func main() {
 		}
 		unix.Close(nfd)
 	}
-
 }
