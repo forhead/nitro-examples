@@ -68,3 +68,57 @@ sh buildClientAndRunOnEC2.sh
 ### check dynamodb in your region 
 in dynamodb you can see there's a new row inserted
 ![dynamodb result](/image/dynamodb_query_result.png)
+
+## 2.2 run on EKS
+for Nitro Enclave on EKS, AWS provide a tool named  [enclavectl](https://github.com/aws/aws-nitro-enclaves-with-k8s) , you can easily deploy this project with sample command. we fork this project and add the configuration for running nitro-golang-example on EKS
+
+1) checkout tool and configure
+```
+git clone https://github.com/forhead/aws-nitro-enclaves-with-k8s.git
+
+cd aws-nitro-enclaves-with-k8s
+source env.sh
+```
+2) configure the eks cluster
+```
+enclavectl configure --file settings.json
+enclavectl setup
+```
+3) build push and run
+```
+enclavectl build --image kmsserver
+enclavectl push --image kmsserver
+enclavectl run --image kmsserver
+```
+4) run the client application
+```
+cd nitro-golang-example/parent
+# build the source code
+go build appClient.go
+# build local docker image
+docker build -t enclaveclientk8s -f Dockerfile .
+# login the ecr, you should replace the account with yours
+aws ecr get-login-password --region ap-northeast-1 | docker login --username AWS --password-stdin 774209043150.dkr.ecr.ap-northeast-1.amazonaws.com
+# create the ecr repo
+aws ecr create-repository --repository-name enclaveclientk8s 
+# tag local image 
+docker tag enclaveclientk8s:latest 774209043150.dkr.ecr.ap-northeast-1.amazonaws.com/enclaveclientk8s:latest
+# push image to ecr repo
+docker push 774209043150.dkr.ecr.ap-northeast-1.amazonaws.com/enclaveclientk8s:latest
+
+```
+5) update appclient-deployment.yaml
+```
+# update the image uri with your ECR URI
+- image: 774209043150.dkr.ecr.ap-northeast-1.amazonaws.com/enclaveclientk8s:latest
+```
+6) apply the deployment
+```
+kubectl apply -f appclient-deployment.yaml
+```
+7) check the pod
+```
+kubectl get pod
+```
+8) you can see the dynamodb with updated value
+![dynamodb result](/image/dynamodb_query_result.png)
