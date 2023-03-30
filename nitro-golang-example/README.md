@@ -66,7 +66,11 @@ cpu_count: 4
 sudo service nitro-enclaves-allocator.service restart
 ```
 2) go to enclave folder to run enclave server
+ 
+- **you can change your REGION environment in this bash file and Dockerfile**
+- **this demo use ap-northeast-1 as default value**
 ```
+
 cd enclave
 sh buildEnclaveAndRunOnEC2.sh
 ```
