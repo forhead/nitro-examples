@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -335,6 +336,8 @@ func main() {
 			fmt.Println(err.Error())
 			fmt.Println(result)
 		}
+		// sleep 10 second to wait for dynamodb creating
+		time.Sleep(10 * 1000 * time.Millisecond)
 	}
 
 	client := accountClient{region, tableName, keyId, 16, 5000}
