@@ -1,6 +1,6 @@
 #!/bin/bash
 
-go build
+go build appClient.go
 
 chmod +x appClient
 ./appClient
