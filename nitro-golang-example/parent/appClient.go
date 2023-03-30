@@ -277,8 +277,92 @@ func getIAMToken() iamCredentialResponse {
 }
 
 func main() {
-	client := accountClient{"ap-northeast-1", "AccountTable", "0f360b0f-1ad4-4c6b-b405-932d2f606779", 16, 5000}
-	client.generateAccount("wallet1")
+
+	region := "ap-northeast-1"
+	keyId = "0f360b0f-1ad4-4c6b-b405-932d2f606779"
+	walletAccountName := "account1"
+	tableName :="AccountTable"
+	
+	// check dynamodb AccountTable exist or not, create it if not exists
+	sess, err := session.NewSession(&aws.Config{
+		Region: aws.String(ac.region)},
+	)
+
+	if err != nil {
+		panic(err)
+	}
+
+	svc := dynamodb.New(sess)
+	input := &dynamodb.DescribeTableInput{
+		TableName: aws.String(tableName),
+	}
+
+	result, err := svc.DescribeTable(input)
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case dynamodb.ErrCodeResourceNotFoundException:
+				fmt.Println(dynamodb.ErrCodeResourceNotFoundException, aerr.Error())
+			case dynamodb.ErrCodeInternalServerError:
+				fmt.Println(dynamodb.ErrCodeInternalServerError, aerr.Error())
+			default:
+				fmt.Println(aerr.Error())
+			}
+		} else {
+			fmt.Println(err.Error())
+		}
+	}
+
+	input := &dynamodb.CreateTableInput{
+		AttributeDefinitions: []*dynamodb.AttributeDefinition{
+			{
+				AttributeName: aws.String("KeyId"),
+				AttributeType: aws.String("S"),
+			},
+			{
+				AttributeName: aws.String("Name"),
+				AttributeType: aws.String("S"),
+			},
+		},
+		KeySchema: []*dynamodb.KeySchemaElement{
+			{
+				AttributeName: aws.String("KeyId"),
+				KeyType:       aws.String("HASH"),
+			},
+			{
+				AttributeName: aws.String("Name"),
+				KeyType:       aws.String("RANGE"),
+			},
+		},
+		ProvisionedThroughput: &dynamodb.ProvisionedThroughput{
+			ReadCapacityUnits:  aws.Int64(5),
+			WriteCapacityUnits: aws.Int64(5),
+		},
+		TableName: aws.String(tableName),
+	}
+	
+	result, err := svc.CreateTable(input)
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case dynamodb.ErrCodeResourceInUseException:
+				fmt.Println(dynamodb.ErrCodeResourceInUseException, aerr.Error())
+			case dynamodb.ErrCodeLimitExceededException:
+				fmt.Println(dynamodb.ErrCodeLimitExceededException, aerr.Error())
+			case dynamodb.ErrCodeInternalServerError:
+				fmt.Println(dynamodb.ErrCodeInternalServerError, aerr.Error())
+			default:
+				fmt.Println(aerr.Error())
+			}
+		} else {
+			fmt.Println(err.Error())
+		}
+		return
+	}
+	
+
+	client := accountClient{region, tableName, keyId, 16, 5000}
+	client.generateAccount()
 
 	//test sign
 	transaction := map[string]interface{}{
@@ -295,6 +379,6 @@ func main() {
 		fmt.Fprintf(b, "%s=\"%s\"\n", key, value)
 	}
 
-	signedValue := client.sign("0f360b0f-1ad4-4c6b-b405-932d2f606779", "wallet1", b.String())
+	signedValue := client.sign(keyId, walletAccountName, b.String())
 	fmt.Println("signedValue:", signedValue)
 }
