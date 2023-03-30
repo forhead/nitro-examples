@@ -50,16 +50,27 @@ you need create a **Symmetric** kms key, which used for **Encrypt and decrypt**,
 golang demo code has two ways of deployment. **EC2** and **EKS**, we provide scripts to run the demo
 
 ## 2.1 run on EC2
-before you run this demo, you need setup Nitro Enclave service on EC2, you can follow this [doc](https://docs.aws.amazon.com/enclaves/latest/user/nitro-enclave-cli-install.html)
+before you run this demo, you need setup Nitro Enclave service on EC2, you can follow this [doc](EC2EnvSetup.md)
 
 you can follow below steps to run the demo code on EC2 
 
-- 1. go to enclave folder to run enclave server
+1) change enclave allocator memory and vcpu
+```
+sudo vi /etc/nitro_enclaves/allocator.yaml
+
+# set the value for 50% of your ec2, in this case, I set 50% from m5.2xlarge
+memory_mib: 8192
+cpu_count: 4
+
+# restart your service
+sudo service nitro-enclaves-allocator.service restart
+```
+2) go to enclave folder to run enclave server
 ```
 cd enclave
 sh buildEnclaveAndRunOnEC2.sh
 ```
-- 2. open another terminal, and go to parent folder to run app client
+3) open another terminal, and go to parent folder to run app client
 ```
 cd parent
 sh buildClientAndRunOnEC2.sh
