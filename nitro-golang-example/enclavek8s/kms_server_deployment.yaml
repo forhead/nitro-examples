@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kmsserver-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kmsserver
+  template:
+    metadata:
+      labels:
+        app: kmsserver
+    spec:
+      containers:
+      - name: kmsserver
+        image: 774209043150.dkr.ecr.ap-northeast-1.amazonaws.com/enclaveserverk8s:latest
+        command: ["/home/run.sh"]
+        imagePullPolicy: Always
+        volumeMounts:
+        # - mountPath: /hugepages-2Mi
+        #   name: hugepage-2mi
+        #   readOnly: false
+        # Enable if 1Gi pages are required
+        - mountPath: /hugepages-1Gi
+          name: hugepage-1gi
+          readOnly: false
+        resources:
+          limits:
+            aws.ec2.nitro/nitro_enclaves: "1"
+            hugepages-1Gi: 1Gi
+            cpu: 2000m
+          requests:
+            aws.ec2.nitro/nitro_enclaves: "1"
+            hugepages-1Gi: 1Gi
+      volumes:
+      # - name: hugepage-2mi
+      #   emptyDir:
+      #     medium: HugePages-2Mi
+      - name: hugepage-1gi
+        emptyDir:
+          medium: HugePages-1Gi
+      tolerations:
+      - effect: NoSchedule
+        operator: Exists
+      - effect: NoExecute
+        operator: Exists
