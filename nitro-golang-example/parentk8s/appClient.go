@@ -35,6 +35,12 @@ type accountTable struct {
 	EncryptedPrivateKey string
 }
 
+type signedValueTable struct{
+	Name string
+	Transaction string
+	SignedValue string
+}
+
 type accountClient struct {
 	region       string
 	ddbTableName string
@@ -282,6 +288,7 @@ func main() {
 	keyId := "0f360b0f-1ad4-4c6b-b405-932d2f606779"
 	walletAccountName := "account1"
 	tableName :="AccountTable"
+	signedTableName :="SignedValueTable"
 	
 	// check dynamodb AccountTable exist or not, create it if not exists
 	sess, err := session.NewSession(&aws.Config{
@@ -356,5 +363,73 @@ func main() {
 	}
 
 	signedValue := client.sign(keyId, walletAccountName, b.String())
-	fmt.Println("signedValue:", signedValue)
+	// for demo, automatically create dynamodb table and save the signed value to it
+	describe_input = &dynamodb.DescribeTableInput{
+		TableName: aws.String(signedTableName),
+	}
+
+	result, err = svc.DescribeTable(describe_input)
+	if err != nil {
+		fmt.Println(err)
+		fmt.Println(result)
+		fmt.Println("create the table",signedTableName)
+		create_input := &dynamodb.CreateTableInput{
+			AttributeDefinitions: []*dynamodb.AttributeDefinition{
+				{
+					AttributeName: aws.String("Name"),
+					AttributeType: aws.String("S"),
+				},
+				{
+					AttributeName: aws.String("Transaction"),
+					AttributeType: aws.String("S"),
+				},
+			},
+			KeySchema: []*dynamodb.KeySchemaElement{
+				{
+					AttributeName: aws.String("Name"),
+					KeyType:       aws.String("HASH"),
+				},
+				{
+					AttributeName: aws.String("Transaction"),
+					KeyType:       aws.String("RANGE"),
+				},
+			},
+			ProvisionedThroughput: &dynamodb.ProvisionedThroughput{
+				ReadCapacityUnits:  aws.Int64(5),
+				WriteCapacityUnits: aws.Int64(5),
+			},
+			TableName: aws.String(signedTableName),
+		}
+		
+		result, err := svc.CreateTable(create_input)
+		if err != nil {
+			fmt.Println(err.Error())
+			fmt.Println(result)
+		}
+	}
+
+	// save to table
+	svt := signedValueTable{
+		Name:           walletAccountName,
+		Transaction: 	b.String(),
+		SignedValue: 	signedValue,
+	}
+
+	sv, err := dynamodbattribute.MarshalMap(svt)
+
+	if err != nil {
+		fmt.Println("Got error marshalling map:")
+		fmt.Println(err.Error())
+	}
+
+	input := &dynamodb.PutItemInput{
+		Item:      sv,
+		TableName: aws.String(signedTableName),
+	}
+
+	_, err = svc.PutItem(input)
+	if err != nil {
+		fmt.Println("Got error calling PutItem:")
+		fmt.Println(err.Error())
+	}
 }
