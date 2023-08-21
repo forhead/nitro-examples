@@ -1,6 +1,6 @@
 # what is in this repo
 - this repo contains demo of use Amazon Nitro Enclave and Amazon KMS which implement the crypto wallet on AWS Cloud
-- this repo contains sample code for golang and python, you can find them in **nitro-golang-example** and **nitro-python-example**
+- this repo contains sample code for golang, python, and rust. You can find them in **nitro-golang-example**, **nitro-python-example**, and **nitro-rust-example** respectively.
 - this repo supports to deploy on Nitro Enclave on EKS, you can follow the steps in README.md file in each sub-folder
 
 # two main workflow 

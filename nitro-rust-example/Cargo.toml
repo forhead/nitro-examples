@@ -1,0 +1,13 @@
+[workspace]
+resolver = "2"
+members = [
+    "parent",
+    "enclave",
+    "aws-dynamodb-kms-demo",
+]
+
+[profile.release]
+strip = true       # Automatically strip symbols from the binary
+opt-level = "s"    # Optimize for size
+lto = true         # Enable link time optimization
+codegen-units = 1  # Maximize size reduction optimizations
