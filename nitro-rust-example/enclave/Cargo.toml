@@ -1,0 +1,26 @@
+[package]
+name = "enclave"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[[bin]]
+name = "enclave-server"
+path = "bin/enclave-server.rs"
+
+[dependencies]
+anyhow = "1.0.73"
+byteorder = "1.4.3"
+clap = { version = "4.3.21", features = ["derive"]}
+libc = "0.2.147"
+log = "0.4.19"
+serde_json = "1.0.104"
+vsock = "0.3.0"
+anychain-core = "0.1.2"
+anychain-ethereum = "0.1.1"
+base64 = "0.21.2"
+libsecp256k1 = "0.7.1"
+rand = "0.8.5"
+subprocess = "0.2.9"
+aes-gcm = "0.10.2"
